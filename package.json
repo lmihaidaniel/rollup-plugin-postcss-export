@@ -1,6 +1,6 @@
 {
   "name": "rollup-plugin-postcss-export",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Seamless integration between Rollup and PostCSS with export to file option",
   "main": "index.js",
   "jsnext:main": "./src/index.js",
@@ -18,14 +18,15 @@
   },
   "keywords": [
     "postcss",
-    "rollup"
+    "rollup",
+    "export"
   ],
   "author": "lmihaidaniel <lacatusu.mihai.daniel@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/egoist/rollup-plugin-postcss/issues"
+    "url": "https://github.com/lmihaidaniel/rollup-plugin-postcss-export/issues"
   },
-  "homepage": "https://github.com/egoist/rollup-plugin-postcss#readme",
+  "homepage": "https://github.com/lmihaidaniel/rollup-plugin-postcss-export#readme",
   "devDependencies": {
     "babel-preset-es2015": "^6.16.0",
     "babel-preset-stage-2": "^6.16.0",

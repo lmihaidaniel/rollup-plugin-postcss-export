@@ -4,6 +4,7 @@ import {
 import postcss from 'postcss';
 import styleInject from 'style-inject';
 import path from 'path';
+import fs from 'fs';
 const bucket = [];
 
 function cwd(file) {
