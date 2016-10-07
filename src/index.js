@@ -25,8 +25,9 @@ export default function(options = {}) {
         let code = "";
         reverse ? code = bucket.reverse().join('') : code = bucket.join('')
         fs.writeFile(output, code);
+      }else{
+        return styleInject.toString().replace(/styleInject/, injectFnName);
       }
-      return styleInject.toString().replace(/styleInject/, injectFnName);
     },
     transform(code, id) {
       if (!filter(id)) return null
