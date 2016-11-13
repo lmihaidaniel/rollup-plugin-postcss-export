@@ -1,18 +1,11 @@
-import babel from 'rollup-plugin-babel';
+import buble from 'rollup-plugin-buble';
 
 var external = Object.keys( require( './package.json' ).dependencies );
 
 export default {
 	entry: 'src/index.js',
 	plugins: [
-    babel({
-      exclude: 'node_modules/**',
-      presets: [
-        ['es2015', {modules: false}],
-        'stage-2'
-      ],
-      babelrc: false
-    })
+    buble(),
   ],
 	external,
   format: 'cjs'

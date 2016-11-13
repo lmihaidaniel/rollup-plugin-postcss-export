@@ -87,8 +87,7 @@ rollup({
  plugins: [
     postcss({
       plugins: [...],
-      output: '/dist/bundle.css',
-      reverse: true, //(optional) reverse the orded of css block imported for the output
+      output: '/dist/bundle.css'
     })
   ]
 })
