@@ -11,9 +11,10 @@ let _logSuccess = function(msg, title) {
   console.log('[' + time + ']', title || 'POSTCSS', "'" + '\x1b[32m' + msg + '\x1b[0m' + "'");
 };
 
+let noOp = function(){};
 let bucket = [];
 
-function _postcss(plugins, output) {
+function _postcss(plugins, output, onDone) {
   _logSuccess('init');
   let r = "";
   let index = 0;
@@ -36,6 +37,7 @@ function _postcss(plugins, output) {
                     return console.log(err);
                   }
                   _logSuccess('done');
+                  onDone();
                 });
                 bucket = [];
               }
@@ -48,7 +50,8 @@ function _postcss(plugins, output) {
   }
 }
 
-export default function(options = {}) {
+export default function(options = {}, done) {
+  if(typeof(done) != 'function') done = noOp;
   const filter = createFilter(options.include, options.exclude);
   const plugins = options.plugins || [];
   const extensions = options.extensions || ['.css', '.sss']
@@ -58,7 +61,7 @@ export default function(options = {}) {
 
   return {
     ongenerate() {
-      _postcss(plugins, output)
+      _postcss(plugins, output, done)
     },
     transform(code, id) {
       if (!filter(id)) { return null }
