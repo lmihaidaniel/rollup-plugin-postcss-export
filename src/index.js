@@ -19,6 +19,10 @@ function _postcss(plugins, output, onDone) {
   let r = "";
   let index = 0;
   let n = bucket.length;
+  if(n===0) {
+    onDone();
+    return;
+  }
   for (var k in bucket) {
     let cb = function(f) {
       return function(err, data) {
