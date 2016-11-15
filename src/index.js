@@ -49,7 +49,7 @@ export default function(options = {}) {
   if(options.parse != null){ parse = options.parse }
 
   return {
-    intro() {
+    ongenerate() {
       _postcss(plugins, output)
     },
     transform(code, id) {
