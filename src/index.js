@@ -5,9 +5,16 @@ import postcss from 'postcss';
 import path from 'path';
 import fs from 'fs';
 
+let _logSuccess = function(msg, title) {
+  var date = new Date;
+  var time = date.getHours() + ':' + date.getMinutes() + ':' + date.getSeconds();
+  console.log('[' + time + ']', title || 'POSTCSS', "'" + '\x1b[32m' + msg + '\x1b[0m' + "'");
+};
+
 let bucket = [];
 
 function _postcss(plugins, output) {
+  _logSuccess('init');
   let r = "";
   let index = 0;
   let n = bucket.length;
@@ -28,6 +35,7 @@ function _postcss(plugins, output) {
                   if (err) {
                     return console.log(err);
                   }
+                  _logSuccess('done');
                 });
                 bucket = [];
               }

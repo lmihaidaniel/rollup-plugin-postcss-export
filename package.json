@@ -1,6 +1,6 @@
 {
   "name": "rollup-plugin-postcss-export",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Rollup PostCSS plugin with export to file option",
   "main": "index.js",
   "jsnext:main": "./src/index.js",
