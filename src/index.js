@@ -34,9 +34,12 @@ function _postcss(styles, plugins, output, onDone) {
           fs.writeFile(output, r, function(err) {
             if (err) {
               return console.log(err);
+            }else{
+              fs.stat(output, function(err, stat) {
+                  _logSuccess(getSize(stat.size),'POSTCSS BUNDLE SIZE');
+                  onDone();
+              });
             }
-            _logSuccess(getSize(output.length),'POSTCSS BUNDLE SIZE');
-            onDone();
           });
         }
       });
@@ -86,10 +89,10 @@ export default function(options = {}, done) {
           styles[id] = code
           changes++
         }
-        return ''
+        return 'export default null'
       } else {
         if (extensions.indexOf(path.extname(id)) > -1) {
-          return ''
+          return 'export default null'
         }
       }
     }
