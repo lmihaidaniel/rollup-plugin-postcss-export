@@ -1,43 +1,50 @@
-import {
-  createFilter
-} from 'rollup-pluginutils';
-import postcss from 'postcss';
-import path from 'path';
-import fs from 'fs';
-
-let _logSuccess = function(msg, title) {
-  var date = new Date;
-  var time = date.getHours() + ':' + date.getMinutes() + ':' + date.getSeconds();
-  console.log('[' + time + ']', title || 'POSTCSS', "'" + '\x1b[32m' + msg + '\x1b[0m' + "'");
-};
-
-let noOp = function() {};
+import { createFilter } from "rollup-pluginutils";
+import { noOp, log, getSize } from "./utils";
+import Concat from "concat-with-sourcemaps";
+import postcss from "postcss";
+import path from "path";
+import fs from "fs";
 
 const styles = {};
 let changes = 0;
 
-function _postcss(styles, plugins, output, onDone) {
-  _logSuccess('init');
-  let r = "";
+function _postcss(styles, output, plugins, opts, onDone) {
+  log.success("init");
+  const concat = new Concat(opts.sourceMap, output, "\n");
   let index = 0;
   let n = Object.keys(styles).length;
-  for (var file in styles) {
+  for (var id in styles) {
     postcss(plugins)
-      .process(styles[file] || '', {
-        from: file,
-        to: file
+      .process(styles[id] || "", {
+        from: id,
+        to: id,
+        map: (opts.sourceMap && {
+          inline: false,
+          annotation: false
+        }) ||
+          false,
+        parser: opts.parser
       })
-      .then(function(result) {
+      .then(result => {
+        concat.add(id, result.css, result.map && result.map.toString());
         index += 1;
-        r += result.css;
         if (index === n) {
-          fs.writeFile(output, r, function(err) {
-            if (err) {
-              return console.log(err);
-            }else{
-              fs.stat(output, function(err, stat) {
-                  _logSuccess(getSize(stat.size),'POSTCSS BUNDLE SIZE');
+          let finalOutput = concat.content.toString("utf8");
+          if (opts.sourceMap) {
+            finalOutput += "\n/*# sourceMappingURL=" + output + ".map */";
+            fs.writeFile(output + ".map", concat.sourceMap);
+          }
+          fs.writeFile(output, finalOutput, writeErr => {
+            if (writeErr) {
+              log.error(writeErr);
+            } else {
+              fs.stat(output, (err, stat) => {
+                if (err) {
+                  log.error(err);
+                } else {
+                  log.success(getSize(stat.size), "POSTCSS BUNDLE SIZE");
                   onDone();
+                }
               });
             }
           });
@@ -46,23 +53,17 @@ function _postcss(styles, plugins, output, onDone) {
   }
 }
 
-function getSize (bytes) {
-  return bytes < 10000
-    ? bytes.toFixed(0) + ' B'
-    : bytes < 1024000
-    ? (bytes / 1024).toPrecision(3) + ' kB'
-    : (bytes / 1024 / 1024).toPrecision(4) + ' MB'
-}
-
 export default function(options = {}, done) {
-  if (typeof(done) != 'function') done = noOp;
+  if (typeof done != "function") done = noOp;
   const filter = createFilter(options.include, options.exclude);
   const plugins = options.plugins || [];
-  const extensions = options.extensions || ['.css', '.sss']
-  const output = options.output || './style.css';
+  const parser = options.parser || null;
+  const extensions = options.extensions || [".css", ".sss"];
+  const output = options.output || "./style.css";
+  const sourceMap = options.sourceMap || false;
   let parse = true;
   if (options.parse != null) {
-    parse = options.parse
+    parse = options.parse;
   }
 
   return {
@@ -70,14 +71,14 @@ export default function(options = {}, done) {
       // No stylesheet needed
       if (!changes || parse === false) {
         done();
-        return
+        return;
       }
-      changes = 0
-      _postcss(styles, plugins, output, done)
+      changes = 0;
+      _postcss(styles, output, plugins, {sourceMap, parser}, done);
     },
     transform(code, id) {
       if (!filter(id)) {
-        return
+        return;
       }
       if (parse) {
         if (extensions.indexOf(path.extname(id)) === -1) {
@@ -85,16 +86,16 @@ export default function(options = {}, done) {
         }
         // Keep track of every stylesheet
         // Check if it changed since last render
-        if (styles[id] !== code && code != '') {
-          styles[id] = code
-          changes++
+        if (styles[id] !== code && code != "") {
+          styles[id] = code;
+          changes++;
         }
-        return 'export default null'
+        return "export default null";
       } else {
         if (extensions.indexOf(path.extname(id)) > -1) {
-          return 'export default null'
+          return "export default null";
         }
       }
     }
-  }
+  };
 }

@@ -15,7 +15,7 @@ npm install rollup-plugin-postcss-export
 
 ## Rollup import example
 
-Use rollup import system to import styles that will be later processed by rollup and exported to a file
+Use rollup import system to import styles that will be later processed by rollup. The processed style are concatenated and exported into a single external file
 
 **config**
 
@@ -32,8 +32,9 @@ rollup({
         // cssnext(),
         // yourPostcssPlugin()
       ],
+      sourceMap: true, // defult false
       output: './style.css',
-      parse: true // default value, when set to false the imported style files are ignored in the rollup flow
+      parse: true // default true, when set to false the imported style files are ignored in the rollup flow
     })
   ]
 }).then(...)
