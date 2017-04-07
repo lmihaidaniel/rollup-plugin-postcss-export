@@ -1,6 +1,6 @@
 {
   "name": "rollup-plugin-postcss-export",
-  "version": "0.3.3",
+  "version": "1.0.0",
   "description": "Rollup PostCSS plugin with export to file option",
   "main": "index.js",
   "jsnext:main": "./src/index.js",
@@ -9,7 +9,7 @@
     "src"
   ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm run build && ava test.js",
     "build": "rollup -c -o index.js"
   },
   "repository": {
@@ -28,12 +28,28 @@
   },
   "homepage": "https://github.com/lmihaidaniel/rollup-plugin-postcss-export#readme",
   "devDependencies": {
-    "rollup": "latest",
-    "rollup-plugin-buble": "latest"
+    "ava": "^0.15.1",
+    "babel-preset-es2015": "^6.16.0",
+    "babel-preset-stage-2": "^6.16.0",
+    "babel-register": "^6.9.0",
+    "jsdom": "^9.2.1",
+    "postcss-modules": "^0.5.2",
+    "postcss-nested": "^1.0.0",
+    "require-from-string": "^1.1.0",
+    "rollup": "^0.36.1",
+    "rollup-plugin-babel": "^2.6.1",
+    "sugarss": "^0.1.3"
   },
   "dependencies": {
-    "postcss": "latest",
-    "rollup-pluginutils": "latest",
-    "concat-with-sourcemaps": "latest"
+    "concat-with-sourcemaps": "^1.0.4",
+    "postcss": "^5.0.12",
+    "rollup-pluginutils": "^1.2.0",
+    "style-inject": "^0.1.0"
+  },
+  "ava": {
+    "require": [
+      "./tests/helpers/set-browser-env.js",
+      "babel-register"
+    ]
   }
 }

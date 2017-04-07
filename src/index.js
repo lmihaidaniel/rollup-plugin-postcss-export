@@ -1,101 +1,94 @@
-import { createFilter } from "rollup-pluginutils";
-import { noOp, log, getSize } from "./utils";
-import Concat from "concat-with-sourcemaps";
-import postcss from "postcss";
-import path from "path";
-import fs from "fs";
+import { createFilter } from 'rollup-pluginutils';
+import postcss from 'postcss';
+import styleInject from 'style-inject';
+import path from 'path';
+import fs from 'fs';
 
-const styles = {};
-let changes = 0;
+import Concat from 'concat-with-sourcemaps';
 
-function _postcss(styles, output, plugins, opts, onDone) {
-  log.success("init");
-  const concat = new Concat(opts.sourceMap, output, "\n");
-  let index = 0;
-  let n = Object.keys(styles).length;
-  for (var id in styles) {
-    postcss(plugins)
-      .process(styles[id] || "", {
-        from: id,
-        to: id,
-        map: (opts.sourceMap && {
-          inline: false,
-          annotation: false
-        }) ||
-          false,
-        parser: opts.parser
-      })
-      .then(result => {
-        concat.add(id, result.css, result.map && result.map.toString());
-        index += 1;
-        if (index === n) {
-          let finalOutput = concat.content.toString("utf8");
-          if (opts.sourceMap) {
-            finalOutput += "\n/*# sourceMappingURL=" + output + ".map */";
-            fs.writeFile(output + ".map", concat.sourceMap);
-          }
-          fs.writeFile(output, finalOutput, writeErr => {
-            if (writeErr) {
-              log.error(writeErr);
-            } else {
-              fs.stat(output, (err, stat) => {
-                if (err) {
-                  log.error(err);
-                } else {
-                  log.success(getSize(stat.size), "POSTCSS BUNDLE SIZE");
-                  onDone();
-                }
-              });
-            }
-          });
-        }
-      });
-  }
+function cwd(file) {
+  return path.join(process.cwd(), file);
 }
 
-export default function(options = {}, done) {
-  if (typeof done != "function") done = noOp;
+function writeFilePromise(dest, content) {
+   return new Promise((resolve, reject) => {
+     fs.writeFile(dest, content, (err) => {
+       if(err) return reject(err);
+ 
+       resolve();
+     })
+   });
+ }
+
+ function extractCssAndWriteToFile(source, manualDest, autoDest, sourceMap){
+    const fileName = path.basename(autoDest, path.extname(autoDest));
+    const cssOutputDest = manualDest?manualDest:path.join(path.dirname(autoDest), fileName + '.css');
+    let css = source.content.toString("utf8");
+    if (sourceMap) {
+      var map = source.sourceMap;
+      if(manualDest){
+        map = JSON.parse(map);
+        map.file = fileName + '.css';
+        map = JSON.stringify(map);
+      }
+      css += '\n/*# sourceMappingURL=data:application/json;base64,' + Buffer.from(map, 'utf8').toString('base64') + ' */';
+    }
+    return writeFilePromise(cssOutputDest, css);
+ }
+
+export default function (options = {}) {
   const filter = createFilter(options.include, options.exclude);
-  const plugins = options.plugins || [];
-  const parser = options.parser || null;
-  const extensions = options.extensions || [".css", ".sss"];
-  const output = options.output || "./style.css";
-  const sourceMap = options.sourceMap || false;
-  let parse = true;
-  if (options.parse != null) {
-    parse = options.parse;
-  }
+  const injectFnName = '__$styleInject'
+  const extensions = options.extensions || ['.css', '.sss']
+  const getExport = options.getExport || function () {}
+  const combineStyleTags = !!options.combineStyleTags;
+  const extract = options.export || false;
+  const extractPath = (typeof extract == "string")?extract:false;
+
+  const concat = new Concat(true, path.basename(extractPath||'styles.css'), '\n');
+
+  const injectStyleFuncCode = styleInject.toString().replace(/styleInject/, injectFnName);
 
   return {
-    ongenerate() {
-      // No stylesheet needed
-      if (!changes || parse === false) {
-        done();
-        return;
-      }
-      changes = 0;
-      _postcss(styles, output, plugins, {sourceMap, parser}, done);
+    intro() {
+      if(extract) return;
+      if(combineStyleTags) return `${injectStyleFuncCode}\n${injectFnName}(${JSON.stringify(concat.content.toString('utf8'))})`;
+      return injectStyleFuncCode;
     },
     transform(code, id) {
-      if (!filter(id)) {
-        return;
-      }
-      if (parse) {
-        if (extensions.indexOf(path.extname(id)) === -1) {
-          return null;
-        }
-        // Keep track of every stylesheet
-        // Check if it changed since last render
-        if (styles[id] !== code && code != "") {
-          styles[id] = code;
-          changes++;
-        }
-        return "export default null";
-      } else {
-        if (extensions.indexOf(path.extname(id)) > -1) {
-          return "export default null";
-        }
+      if (!filter(id)) return null
+      if (extensions.indexOf(path.extname(id)) === -1) return null
+      const opts = {
+        from: options.from ? cwd(options.from) : id,
+        to: options.to ? cwd(options.to) : id,
+        map: {
+          inline: false,
+          annotation: false
+        },
+        parser: options.parser
+      };
+      return postcss(options.plugins || [])
+          .process(code, opts)
+          .then(result => {
+            let code, map;
+            if(combineStyleTags || extract) {
+              concat.add(result.opts.from, result.css, result.map && result.map.toString());
+              code = `export default ${JSON.stringify(getExport(result.opts.from))};`;
+              map = { mappings: '' };
+            } else {
+              code = `export default ${injectFnName}(${JSON.stringify(result.css)},${JSON.stringify(getExport(result.opts.from))});`;
+              map = options.sourceMap && result.map
+                ? JSON.parse(result.map)
+                : { mappings: '' };
+            }
+
+            return { code, map };
+          });
+    },
+    onwrite(opts){
+      if(extract){
+        return extractCssAndWriteToFile(concat, extractPath, opts.dest, options.sourceMap);
       }
     }
   };
-}
+};

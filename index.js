@@ -3,136 +3,93 @@
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
 var rollupPluginutils = require('rollup-pluginutils');
-var Concat = _interopDefault(require('concat-with-sourcemaps'));
 var postcss = _interopDefault(require('postcss'));
+var styleInject = _interopDefault(require('style-inject'));
 var path = _interopDefault(require('path'));
 var fs = _interopDefault(require('fs'));
+var Concat = _interopDefault(require('concat-with-sourcemaps'));
 
-var noOp = function () {};
-var log = {
-  success: function success(msg, title) {
-    var date = new Date();
-    var time = date.getHours() +
-      ":" +
-      date.getMinutes() +
-      ":" +
-      date.getSeconds();
-    console.log(
-      "[" + time + "]",
-      title || "POSTCSS",
-      "'" + "\x1b[32m" + msg + "\x1b[0m" + "'"
-    );
-  },
-  error: function error(msg, title) {
-    var date = new Date();
-    var time = date.getHours() +
-      ":" +
-      date.getMinutes() +
-      ":" +
-      date.getSeconds();
-    console.log("[" + time + "]", title || "POSTCSS", "\x1b[31m", msg, "\x1b[0m");
-  }
-};
-var getSize = function (bytes) {
-  return bytes < 10000
-    ? bytes.toFixed(0) + " B"
-    : bytes < 1024000
-        ? (bytes / 1024).toPrecision(3) + " kB"
-        : (bytes / 1024 / 1024).toPrecision(4) + " MB";
-};
-
-var styles = {};
-var changes = 0;
-
-function _postcss(styles, output, plugins, opts, onDone) {
-  log.success("init");
-  var concat = new Concat(opts.sourceMap, output, "\n");
-  var index = 0;
-  var n = Object.keys(styles).length;
-  for (var id in styles) {
-    postcss(plugins)
-      .process(styles[id] || "", {
-        from: id,
-        to: id,
-        map: (opts.sourceMap && {
-          inline: false,
-          annotation: false
-        }) ||
-          false,
-        parser: opts.parser
-      })
-      .then(function (result) {
-        concat.add(id, result.css, result.map && result.map.toString());
-        index += 1;
-        if (index === n) {
-          var finalOutput = concat.content.toString("utf8");
-          if (opts.sourceMap) {
-            finalOutput += "\n/*# sourceMappingURL=" + output + ".map */";
-            fs.writeFile(output + ".map", concat.sourceMap);
-          }
-          fs.writeFile(output, finalOutput, function (writeErr) {
-            if (writeErr) {
-              log.error(writeErr);
-            } else {
-              fs.stat(output, function (err, stat) {
-                if (err) {
-                  log.error(err);
-                } else {
-                  log.success(getSize(stat.size), "POSTCSS BUNDLE SIZE");
-                  onDone();
-                }
-              });
-            }
-          });
-        }
-      });
-  }
+function cwd(file) {
+  return path.join(process.cwd(), file);
 }
 
-var index = function(options, done) {
-  if ( options === void 0 ) options = {};
+function writeFilePromise(dest, content) {
+  return new Promise(function (resolve, reject) {
+    fs.writeFile(dest, content, function (err) {
+      if (err) return reject(err);
 
-  if (typeof done != "function") { done = noOp; }
-  var filter = rollupPluginutils.createFilter(options.include, options.exclude);
-  var plugins = options.plugins || [];
-  var parser = options.parser || null;
-  var extensions = options.extensions || [".css", ".sss"];
-  var output = options.output || "./style.css";
-  var sourceMap = options.sourceMap || false;
-  var parse = true;
-  if (options.parse != null) {
-    parse = options.parse;
+      resolve();
+    });
+  });
+}
+
+function extractCssAndWriteToFile(source, manualDest, autoDest, sourceMap) {
+  var fileName = path.basename(autoDest, path.extname(autoDest));
+  var cssOutputDest = manualDest ? manualDest : path.join(path.dirname(autoDest), fileName + '.css');
+  var css = source.content.toString("utf8");
+  if (sourceMap) {
+    var map = source.sourceMap;
+    if (manualDest) {
+      map = JSON.parse(map);
+      map.file = fileName + '.css';
+      map = JSON.stringify(map);
+    }
+    css += '\n/*# sourceMappingURL=data:application/json;base64,' + Buffer.from(map, 'utf8').toString('base64') + ' */';
   }
+  return writeFilePromise(cssOutputDest, css);
+}
+
+var index = function () {
+  var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+
+  var filter = rollupPluginutils.createFilter(options.include, options.exclude);
+  var injectFnName = '__$styleInject';
+  var extensions = options.extensions || ['.css', '.sss'];
+  var getExport = options.getExport || function () {};
+  var combineStyleTags = !!options.combineStyleTags;
+  var extract = options.export || false;
+  var extractPath = typeof extract == "string" ? extract : false;
+
+  var concat = new Concat(true, path.basename(extractPath || 'styles.css'), '\n');
+
+  var injectStyleFuncCode = styleInject.toString().replace(/styleInject/, injectFnName);
 
   return {
-    ongenerate: function ongenerate() {
-      // No stylesheet needed
-      if (!changes || parse === false) {
-        done();
-        return;
-      }
-      changes = 0;
-      _postcss(styles, output, plugins, {sourceMap: sourceMap, parser: parser}, done);
+    intro: function intro() {
+      if (extract) return;
+      if (combineStyleTags) return injectStyleFuncCode + '\n' + injectFnName + '(' + JSON.stringify(concat.content.toString('utf8')) + ')';
+      return injectStyleFuncCode;
     },
     transform: function transform(code, id) {
-      if (!filter(id)) {
-        return;
-      }
-      if (parse) {
-        if (extensions.indexOf(path.extname(id)) === -1) {
-          return null;
+      if (!filter(id)) return null;
+      if (extensions.indexOf(path.extname(id)) === -1) return null;
+      var opts = {
+        from: options.from ? cwd(options.from) : id,
+        to: options.to ? cwd(options.to) : id,
+        map: {
+          inline: false,
+          annotation: false
+        },
+        parser: options.parser
+      };
+      return postcss(options.plugins || []).process(code, opts).then(function (result) {
+        var code = void 0,
+            map = void 0;
+        if (combineStyleTags || extract) {
+          concat.add(result.opts.from, result.css, result.map && result.map.toString());
+          code = 'export default ' + JSON.stringify(getExport(result.opts.from)) + ';';
+          map = { mappings: '' };
+        } else {
+          code = 'export default ' + injectFnName + '(' + JSON.stringify(result.css) + ',' + JSON.stringify(getExport(result.opts.from)) + ');';
+          map = options.sourceMap && result.map ? JSON.parse(result.map) : { mappings: '' };
         }
-        // Keep track of every stylesheet
-        // Check if it changed since last render
-        if (styles[id] !== code && code != "") {
-          styles[id] = code;
-          changes++;
-        }
-        return "export default null";
-      } else {
-        if (extensions.indexOf(path.extname(id)) > -1) {
-          return "export default null";
-        }
+
+        return { code: code, map: map };
+      });
+    },
+    onwrite: function onwrite(opts) {
+      if (extract) {
+        return extractCssAndWriteToFile(concat, extractPath, opts.dest, options.sourceMap);
       }
     }
   };
