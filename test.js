@@ -6,7 +6,7 @@ import {
   buildWithParser,
   buildWithCssModules,
   buildCombinedStyles,
-  buildWithExtract
+  buildWithExport
 } from './tests/build';
 
 test('test postcss', async t => {
@@ -38,7 +38,7 @@ test('combine styles', async t => {
 })
 
 test('extract styles', async t => {
-  const data = await buildWithExtract().catch(err => console.log(err.stack));
+  const data = await buildWithExport().catch(err => console.log(err.stack));
   const extractedStyles = fs.readFileSync('./tests/output_extract.css');
   t.regex(extractedStyles, /color: hotpink;/);
 })

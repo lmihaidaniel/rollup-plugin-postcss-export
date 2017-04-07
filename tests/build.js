@@ -156,14 +156,14 @@ export function buildCombinedStyles() {
   })
 };
 
-export function buildWithExtract() {
+export function buildWithExport() {
   const exportMap = {}
   return rollup({
     plugins: [
       postcss({
         include: '**/*.css',
         sourceMap: true,
-        extract: true,
+        export: true,
         plugins: [
           require('postcss-modules')({
             getJSON (id, exportTokens) {
