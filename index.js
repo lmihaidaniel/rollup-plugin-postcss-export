@@ -7,6 +7,7 @@ var postcss = _interopDefault(require('postcss'));
 var styleInject = _interopDefault(require('style-inject'));
 var path = _interopDefault(require('path'));
 var fs = _interopDefault(require('fs'));
+var mkdirp = _interopDefault(require('mkdirp'));
 var Concat = _interopDefault(require('concat-with-sourcemaps'));
 
 function cwd(file) {
@@ -49,6 +50,10 @@ var index = function () {
   var combineStyleTags = !!options.combineStyleTags;
   var extract = options.export || false;
   var extractPath = typeof extract == "string" ? extract : false;
+
+  if (extractPath) mkdirp(path.dirname(extractPath), function (err) {
+    if (err) throw Error(err);
+  });
 
   var concat = new Concat(true, path.basename(extractPath || 'styles.css'), '\n');
 
