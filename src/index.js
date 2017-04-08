@@ -27,7 +27,7 @@ function writeFilePromise(dest, content) {
     let css = source.content.toString("utf8");
     if (sourceMap) {
       var map = source.sourceMap;
-      if(manualDest){
+      if(!manualDest){
         map = JSON.parse(map);
         map.file = fileName + '.css';
         map = JSON.stringify(map);
