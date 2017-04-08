@@ -52,7 +52,7 @@ import '/path/to/some_random_file.css'
 The [postcss-modules](https://github.com/css-modules/postcss-modules) plugin allows you to use CSS modules in PostCSS, it requires some additional setup to use in Rollup:
 
 ```js
-import postcss from 'rollup-plugin-postcss';
+import postcss from 'rollup-plugin-postcss-export';
 import postcssModules from 'postcss-modules';
 
 const cssExportMap = {};
