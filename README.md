@@ -1,8 +1,8 @@
-# rollup-plugin-postcss-export
-
 ## Notice !!!
 
 This plugin is not maintained anymore. Please use [rollup-plugin-postcss](https://github.com/egoist/rollup-plugin-postcss) where i collaborate. Let's not create 10x times the same package.
+
+# rollup-plugin-postcss-export
 
 <img align="right" width="95" height="95"
      title="Philosopher’s stone, logo of PostCSS"
